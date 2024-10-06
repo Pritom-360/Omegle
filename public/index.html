@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omegle-like Video Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1>Welcome to Omegle-like Video Chat</h1>
+
+    <div id="video-chat">
+        <video id="local-video" autoplay playsinline></video>
+        <video id="remote-video" autoplay playsinline></video>
+    </div>
+
+    <button id="start-chat">Start Chat</button>
+
+    <script>
+        const socket = io();
+        const peer = new Peer();
+        let localStream;
+
+        // Request video and audio stream from the user
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localStream = stream;
+                document.getElementById('local-video').srcObject = stream;
+            })
+            .catch(err => console.error('Failed to get media stream', err));
+
+        document.getElementById('start-chat').addEventListener('click', () => {
+            peer.on('open', (id) => {
+                console.log('Peer ID:', id);
+
+                // Fetch a matched peer ID from GAS
+                fetch(`https://script.google.com/macros/s/AKfycbxVArgatZlaQK8Sw83fSplVbXYpicQVgO9t3DwRuVlgnoOgVqDJf_pWoc-dsLZ7Nc-x/exec?action=getMatchedPeer&interests=`, { mode: 'cors' })
+                    .then(response => response.text())
+                    .then(matchedPeerId => {
+                        console.log('Matched with Peer ID:', matchedPeerId);
+
+                        const call = peer.call(matchedPeerId, localStream);
+                        call.on('stream', (remoteStream) => {
+                            document.getElementById('remote-video').srcObject = remoteStream;
+                        });
+                    })
+                    .catch(err => console.error('Error fetching matched peer', err));
+            });
+        });
+
+        peer.on('call', (call) => {
+            call.answer(localStream);
+            call.on('stream', (remoteStream) => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+            });
+        });
+    </script>
+</body>
+</html>
